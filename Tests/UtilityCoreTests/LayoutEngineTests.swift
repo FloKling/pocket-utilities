@@ -36,6 +36,15 @@ final class LayoutEngineTests {
         expectEqual(right.maxX, screen.maxX - 10)
         expectEqual(rect(.maximize, settings: settings), screen.insetBy(dx: 10, dy: 10))
     }
+    @Test func testFractionalMarginsAndGapsPreservePointPrecision() {
+        let settings = LayoutSettings(margin: 10.25, horizontalGap: 12.5, verticalGap: 8.75)
+        let topLeft = rect(.topLeft, settings: settings)
+        let topRight = rect(.topRight, settings: settings)
+        let bottomLeft = rect(.bottomLeft, settings: settings)
+        expectEqual(topLeft, CGRect(x: 110.25, y: 60.25, width: 583.5, height: 435.375))
+        expectEqual(topRight.minX - topLeft.maxX, 12.5)
+        expectEqual(bottomLeft.minY - topLeft.maxY, 8.75)
+    }
     @Test func testThirdSeams() {
         let options = LayoutSettings(margin: 5, horizontalGap: 18)
         let a = rect(.leftThird, settings: options), b = rect(.centerThird, settings: options), c = rect(.rightThird, settings: options)

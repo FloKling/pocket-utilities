@@ -64,10 +64,11 @@ public struct LayoutSettings: Codable, Equatable {
 /// All coordinates use the Accessibility/Quartz top-left coordinate system, in points.
 public enum LayoutEngine {
     public static func frame(fraction: CGRect, screen: CGRect, settings: LayoutSettings) -> CGRect {
-        let margin = min(max(0, settings.margin), max(0, min(screen.width, screen.height) / 2 - 1))
+        let maximumMargin: CGFloat = max(0, min(screen.width, screen.height) / 2 - 1)
+        let margin = min(max(0, CGFloat(settings.margin)), maximumMargin)
         let area = screen.insetBy(dx: margin, dy: margin)
-        let gapX = min(max(0, settings.horizontalGap), area.width * fraction.width / 2)
-        let gapY = min(max(0, settings.verticalGap), area.height * fraction.height / 2)
+        let gapX = min(max(0, CGFloat(settings.horizontalGap)), area.width * fraction.width / 2)
+        let gapY = min(max(0, CGFloat(settings.verticalGap)), area.height * fraction.height / 2)
         let left = fraction.minX > 0 ? gapX / 2 : 0
         let right = fraction.maxX < 0.999999 ? gapX / 2 : 0
         let top = fraction.minY > 0 ? gapY / 2 : 0
