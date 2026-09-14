@@ -44,12 +44,18 @@ struct Preferences: Codable {
 }
 
 final class SettingsStore: ObservableObject {
+    @Published var startup: StartupState {
+        didSet {
+            if let data = try? JSONEncoder().encode(startup) { defaults?.set(data, forKey: "startupState") }
+        }
+    }
     @Published var value: Preferences { didSet { save() } }
     var onChange: (() -> Void)?
     private let defaults: UserDefaults?
     private var isSaving = false
     init(defaults: UserDefaults? = .standard) {
         self.defaults = defaults
+        startup = defaults?.data(forKey: "startupState").flatMap { try? JSONDecoder().decode(StartupState.self, from: $0) } ?? StartupState()
         if let data = defaults?.data(forKey: "preferences"), let value = try? JSONDecoder().decode(Preferences.self, from: data) {
             self.value = value
         } else { value = .defaults }

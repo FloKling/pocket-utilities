@@ -21,11 +21,16 @@ final class KeepAwakeService {
     }
     var active: Bool { assertion != 0 }
     func enable(minutes: Int? = nil) throws {
+        try enable(until: minutes.map { now().addingTimeInterval(Double($0) * 60) })
+    }
+    func enable(until end: Date?) throws {
         disable()
+        let remaining = end.map { $0.timeIntervalSince(now()) }
+        if let remaining, remaining <= 0 { return }
         assertion = try createAssertion()
-        if let minutes {
-            deadline = now().addingTimeInterval(Double(minutes) * 60)
-            let timer = Timer(timeInterval: Double(minutes) * 60, repeats: false) { [weak self] _ in self?.disable() }
+        deadline = end
+        if let remaining {
+            let timer = Timer(timeInterval: remaining, repeats: false) { [weak self] _ in self?.disable() }
             RunLoop.main.add(timer, forMode: .common)
             self.timer = timer
         }

@@ -49,7 +49,9 @@ Click the four-square menu-bar icon → Settings → Permissions. Accessibility 
 
 Keep Awake and copying entries back to the clipboard work without Accessibility. For clipboard history without its global shortcut, use **Clipboard → Show History…**. Newer macOS releases may additionally show system clipboard privacy prompts. Denial or empty pasteboard access is handled as no new capture.
 
-Keep Awake and Jiggler always launch OFF. Clipboard recording starts enabled, but **memory-only**, with password-manager exclusions and a two-second stabilization period. Switch recording off in Settings or temporarily pause it in the menu. Persistence is explicitly opt-in.
+Settings → General offers **Launch at Login**, using macOS Login Items. Enable it from the signed app in its stable installation location; macOS may require approval in System Settings. Startup runs after login, not before unlocking the Mac. Disabling it unregisters the login item.
+
+All preferences are saved automatically and loaded at launch. **Restore Keep Awake and Mouse Jiggler on launch** is enabled by default: the last utility states are saved separately from existing preferences. Timed Keep Awake retains its original deadline and expired sessions stay off. Disable restoration to start both utilities off. Missing Accessibility permission prevents Jiggler restoration and is reported. Normal quit releases resources without saving an artificial OFF state. Preview and smoke-test modes do not restore utilities or register login items. Clipboard recording starts enabled, but **memory-only**, with password-manager exclusions and a two-second stabilization period. Switch recording off in Settings or temporarily pause it in the menu. Persistence is explicitly opt-in.
 
 ## Window management
 

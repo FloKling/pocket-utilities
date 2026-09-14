@@ -26,7 +26,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         menu = MenuBarController(settings: settings, windowManager: windowManager, accessibility: accessibility,
             hotkeys: hotkeys, awake: awake, jiggler: jiggler, clipboard: clipboard, monitor: monitor, store: store, preferences: preferences)
         hotkeys.onAction = { [weak self] action in self?.menu?.shortcut(action) }
-        awake.onChange = { [weak self] in self?.menu?.refreshAwakeState() }
+        if !testing {
+            let errors = settings.startup.restore(awake: awake, enableJiggler: { try self.jiggler.setEnabled($0) })
+            recordUtilityState()
+            menu?.rebuild()
+            if !errors.isEmpty {
+                let alert = NSAlert()
+                alert.messageText = "Some startup settings could not be restored"
+                alert.informativeText = errors.joined(separator: "\n")
+                alert.runModal()
+            }
+        }
+        awake.onChange = { [weak self] in
+            self?.recordUtilityState(); self?.menu?.refreshAwakeState()
+        }
+        jiggler.onChange = { [weak self] in self?.recordUtilityState() }
         settings.onChange = { [weak self] in
             guard let self else { return }
             self.hotkeys.shortcuts = self.settings.value.shortcuts
@@ -50,7 +64,16 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         }
         if CommandLine.arguments.contains("--preview") { monitor.paused = true; preferences.show() }
     }
+    private func recordUtilityState() {
+        var state = settings.startup
+        state.keepAwake = awake.active
+        state.awakeDeadline = awake.deadline
+        state.mouseJiggler = jiggler.active
+        settings.startup = state
+    }
     func applicationWillTerminate(_ notification: Notification) {
+        // Cleanup releases resources without persisting a synthetic OFF state.
+        awake.onChange = nil; jiggler.onChange = nil
         awake.disable(); try? jiggler.setEnabled(false); hotkeys.stop(); monitor.stop(); store.shutdown()
         for observer in observers { NSWorkspace.shared.notificationCenter.removeObserver(observer) }
     }

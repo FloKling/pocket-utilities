@@ -1,5 +1,6 @@
 import AppKit
 import IOKit.pwr_mgt
+import ServiceManagement
 import Testing
 import UtilityCore
 @testable import PocketUtilities
@@ -269,5 +270,82 @@ struct DirectPasteSettingsTests {
         settings.value.pasteImmediately.toggle()
         #expect(!SettingsStore(defaults: defaults).value.pasteImmediately)
         #expect(observed == [true, false])
+    }
+}
+
+
+struct StartupTests {
+    @Test func oldPreferencesAndUtilityStateSurviveReload() throws {
+        let name = "PocketUtilities.tests.\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: name))
+        defer { defaults.removePersistentDomain(forName: name) }
+        var existing = Preferences.defaults
+        existing.pasteImmediately = true
+        existing.layout.margin = 17
+        defaults.set(try JSONEncoder().encode(existing), forKey: "preferences")
+        let settings = SettingsStore(defaults: defaults)
+        #expect(settings.value.pasteImmediately)
+        #expect(settings.value.layout.margin == 17)
+        #expect(settings.startup == StartupState())
+        settings.startup = StartupState(restoreUtilities: true, keepAwake: true,
+            awakeDeadline: Date(timeIntervalSince1970: 10000), mouseJiggler: true)
+        let reloaded = SettingsStore(defaults: defaults)
+        #expect(reloaded.startup == settings.startup)
+        #expect(reloaded.value.pasteImmediately)
+        #expect(reloaded.value.shortcuts.count == existing.shortcuts.count)
+    }
+    @Test func timedSessionRetainsDeadlineAndExpiresWithoutRestartingDuration() {
+        var now = Date(timeIntervalSince1970: 10000)
+        var released: [UInt32] = []
+        let awake = KeepAwakeService(createAssertion: { 42 }, releaseAssertion: { released.append($0) }, now: { now })
+        let end = now.addingTimeInterval(23)
+        let state = StartupState(keepAwake: true, awakeDeadline: end, mouseJiggler: true)
+        var jiggler = false
+        #expect(state.restore(awake: awake, enableJiggler: { jiggler = $0 }).isEmpty)
+        #expect(awake.active && jiggler)
+        #expect(awake.deadline == end)
+        now = end
+        awake.expireIfNeeded()
+        #expect(!awake.active)
+        #expect(released == [42])
+        #expect(state.restore(awake: awake, enableJiggler: { _ in }).isEmpty)
+        #expect(!awake.active)
+    }
+    @Test func indefiniteSessionRestoresAndOptOutSkipsServices() {
+        let awake = KeepAwakeService(createAssertion: { 42 }, releaseAssertion: { _ in })
+        var state = StartupState(restoreUtilities: false, keepAwake: true, mouseJiggler: true)
+        var calls = 0
+        #expect(state.restore(awake: awake, enableJiggler: { _ in calls += 1 }).isEmpty)
+        #expect(!awake.active && calls == 0)
+        state.restoreUtilities = true
+        #expect(state.restore(awake: awake, enableJiggler: { _ in calls += 1 }).isEmpty)
+        #expect(awake.active && awake.deadline == nil && calls == 1)
+    }
+    @Test func failureInOneUtilityDoesNotPreventRestoringTheOther() {
+        let awake = KeepAwakeService(createAssertion: { throw UtilityError("Unavailable") })
+        var jiggler = false
+        let errors = StartupState(keepAwake: true, mouseJiggler: true)
+            .restore(awake: awake, enableJiggler: { jiggler = $0 })
+        #expect(errors.count == 1)
+        #expect(!awake.active && jiggler)
+    }
+    @Test func loginRegistrationReflectsApprovalAndExternalChanges() {
+        var status = SMAppService.Status.notRegistered
+        let login = LoginItemService(readStatus: { status }, register: { status = .requiresApproval }, unregister: { status = .notRegistered })
+        login.setEnabled(true)
+        #expect(login.requested && login.status == .requiresApproval)
+        status = .enabled
+        login.refresh()
+        #expect(login.status == .enabled)
+        login.setEnabled(false)
+        #expect(!login.requested && login.error == nil)
+    }
+    @Test func loginFailuresDoNotClaimSuccess() {
+        let login = LoginItemService(readStatus: { .notRegistered }, register: { throw UtilityError("Denied") }, unregister: {})
+        login.setEnabled(true)
+        #expect(!login.requested && login.error != nil)
+        let enabled = LoginItemService(readStatus: { .enabled }, register: {}, unregister: { throw UtilityError("Denied") })
+        enabled.setEnabled(false)
+        #expect(enabled.requested && enabled.error != nil)
     }
 }

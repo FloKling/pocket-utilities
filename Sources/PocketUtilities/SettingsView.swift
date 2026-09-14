@@ -51,6 +51,11 @@ struct SettingsView: View {
                 }.padding()
             }.tabItem { Label("Shortcuts", systemImage: "keyboard") }.tag("shortcuts")
             Form {
+                Section("Startup") {
+                    LoginItemView()
+                    Toggle("Restore Keep Awake and Mouse Jiggler on launch", isOn: $settings.startup.restoreUtilities)
+                    Text("Settings are saved automatically. Timed Keep Awake sessions retain their original end time; expired sessions stay off.").font(.caption).foregroundStyle(.secondary)
+                }
                 Section("Mouse Jiggler") {
                     number("Interval (seconds)", value: $settings.value.jigglerInterval, range: 10...3600)
                     Toggle("Subtle mode (1 point; otherwise 2)", isOn: $settings.value.subtleJiggler)
@@ -59,7 +64,7 @@ struct SettingsView: View {
                     Text("Skips recent input, held buttons/modifiers, full-screen-sized windows and unavailable sessions. For games, add their bundle IDs or turn Jiggler off.").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("General") {
-                    Text("Keep Awake and Mouse Jiggler always start OFF. Keep Awake keeps the Mac and display awake while enabled. Manual locking, lid closure, separate screen-saver timers and managed security policies remain under macOS control.")
+                    Text("Keep Awake keeps the Mac and display awake while enabled. Manual locking, lid closure, separate screen-saver timers and managed security policies remain under macOS control.")
                     Text("One menu-bar icon. No accounts, network services or automatic updates.").foregroundStyle(.secondary)
                 }
             }.formStyle(.grouped).tabItem { Label("General", systemImage: "slider.horizontal.3") }.tag("general")
@@ -166,4 +171,22 @@ final class RecorderButton: NSButton {
         title = settings?.value.shortcuts[actionID]?.display ?? "Click to record…"
     }
     deinit { if let monitor { NSEvent.removeMonitor(monitor) }; if let resignObserver { NotificationCenter.default.removeObserver(resignObserver) } }
+}
+
+
+private struct LoginItemView: View {
+    @StateObject private var service = LoginItemService()
+    private var preview: Bool { CommandLine.arguments.contains("--preview") || CommandLine.arguments.contains("--smoke-test") }
+    var body: some View {
+        Toggle("Launch at Login", isOn: Binding(get: { service.requested }, set: { service.setEnabled($0) }))
+            .disabled(preview)
+            .onAppear { service.refresh() }
+            .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in service.refresh() }
+        if service.status == .requiresApproval {
+            Text("Approval is required in macOS Login Items.").font(.caption)
+            Button("Open Login Items Settings…") { service.openSettings() }.disabled(preview)
+        }
+        if service.status == .notFound { Text("Launch the installed app bundle to configure login startup.").font(.caption) }
+        if let error = service.error { Text(error).font(.caption).foregroundStyle(.red) }
+    }
 }
