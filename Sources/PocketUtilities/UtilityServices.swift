@@ -48,16 +48,26 @@ final class KeepAwakeService {
 final class MouseJigglerService {
     private var timer: Timer?
     private let settings: SettingsStore
+    private let secondsSinceLastEvent: (CGEventSourceStateID, CGEventType) -> TimeInterval
     var active: Bool { timer != nil }
     var sessionAvailable = true
     var onChange: (() -> Void)?
-    init(settings: SettingsStore) { self.settings = settings }
+    init(settings: SettingsStore,
+         secondsSinceLastEvent: @escaping (CGEventSourceStateID, CGEventType) -> TimeInterval = CGEventSource.secondsSinceLastEventType) {
+        self.settings = settings
+        self.secondsSinceLastEvent = secondsSinceLastEvent
+    }
+    var isIdle: Bool {
+        // All input includes button releases, dragging and modifier changes, not just key-down/mouse-move.
+        let elapsed = secondsSinceLastEvent(.combinedSessionState, CGEventType(rawValue: UInt32.max)!)
+        return elapsed.isFinite && elapsed >= max(10, settings.value.jigglerInterval)
+    }
     func setEnabled(_ enabled: Bool) throws {
         timer?.invalidate(); timer = nil
         if enabled {
             guard AXIsProcessTrusted() else { throw UtilityError("Mouse Jiggler requires Accessibility permission.") }
-            let timer = Timer(timeInterval: max(10, settings.value.jigglerInterval), repeats: true) { [weak self] _ in self?.jiggle() }
-            timer.tolerance = 2
+            let timer = Timer(timeInterval: 1, repeats: true) { [weak self] _ in self?.jiggle() }
+            timer.tolerance = 0.1
             RunLoop.main.add(timer, forMode: .common)
             self.timer = timer
         }
@@ -65,7 +75,7 @@ final class MouseJigglerService {
     }
     func reconfigure() { if active { try? setEnabled(true) } }
     private func jiggle() {
-        guard sessionAvailable, AXIsProcessTrusted(), NSApp.currentSystemPresentationOptions.isEmpty,
+        guard sessionAvailable, isIdle, AXIsProcessTrusted(), NSApp.currentSystemPresentationOptions.isEmpty,
               let front = NSWorkspace.shared.frontmostApplication,
               !Set(settings.value.jigglerExclusions.split(whereSeparator: \.isWhitespace).map(String.init)).contains(front.bundleIdentifier ?? "") else { return }
         // Fail closed if we cannot establish that the frontmost app has a normal window.
@@ -83,9 +93,7 @@ final class MouseJigglerService {
             if CGEventSource.buttonState(.combinedSessionState, button: CGMouseButton(rawValue: UInt32(number))!) { return }
         }
         guard CGEventSource.flagsState(.combinedSessionState).intersection([.maskCommand, .maskControl, .maskAlternate, .maskShift]).isEmpty,
-              CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .mouseMoved) > 5,
-              CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .keyDown) > 5,
-              CGEventSource.secondsSinceLastEventType(.combinedSessionState, eventType: .scrollWheel) > 5,
+              isIdle,
               let position = CGEvent(source: nil)?.location else { return }
         let delta: CGFloat = settings.value.subtleJiggler ? 1 : 2
         let shifted = CGPoint(x: position.x + (position.x > frame.midX ? -delta : delta), y: position.y)

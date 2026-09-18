@@ -77,7 +77,7 @@ final class MenuBarController: NSObject, NSMenuDelegate {
         durations.submenu = options; menu.addItem(durations)
         menu.addItem(.separator())
         section("Mouse Jiggler")
-        item(jiggler.active ? "On · every \(Int(max(10, settings.value.jigglerInterval))) seconds" : "Off", "jiggler", in: menu, checked: jiggler.active)
+        item(jiggler.active ? "On · after \(Int(max(10, settings.value.jigglerInterval))) seconds idle" : "Off", "jiggler", in: menu, checked: jiggler.active)
         menu.addItem(.separator())
         section("Clipboard")
         item("Show History…" + (settings.value.shortcuts["clipboard"].map { "    " + $0.display } ?? ""), "clipboard", in: menu)

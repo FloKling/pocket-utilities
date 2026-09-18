@@ -57,11 +57,11 @@ struct SettingsView: View {
                     Text("Settings are saved automatically. Timed Keep Awake sessions retain their original end time; expired sessions stay off.").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("Mouse Jiggler") {
-                    number("Interval (seconds)", value: $settings.value.jigglerInterval, range: 10...3600)
+                    number("Idle time (seconds)", value: $settings.value.jigglerInterval, range: 10...3600)
                     Toggle("Subtle mode (1 point; otherwise 2)", isOn: $settings.value.subtleJiggler)
                     Text("Excluded application bundle IDs (one per line)").font(.caption)
                     TextEditor(text: $settings.value.jigglerExclusions).frame(height: 65).font(.system(.caption, design: .monospaced))
-                    Text("Skips recent input, held buttons/modifiers, full-screen-sized windows and unavailable sessions. For games, add their bundle IDs or turn Jiggler off.").font(.caption).foregroundStyle(.secondary)
+                    Text("Waits for the configured idle time after any input. Skips held buttons/modifiers, full-screen-sized windows and unavailable sessions. For games, add their bundle IDs or turn Jiggler off.").font(.caption).foregroundStyle(.secondary)
                 }
                 Section("General") {
                     Text("Keep Awake keeps the Mac and display awake while enabled. Manual locking, lid closure, separate screen-saver timers and managed security policies remain under macOS control.")

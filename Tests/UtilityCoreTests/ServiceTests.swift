@@ -349,3 +349,50 @@ struct StartupTests {
         #expect(enabled.requested && enabled.error != nil)
     }
 }
+
+struct MouseJigglerTests {
+    @Test func waitsForFullIntervalSinceLatestInput() {
+        let settings = SettingsStore(defaults: nil)
+        settings.value.jigglerInterval = 60
+        var elapsed: TimeInterval = 6
+        let service = MouseJigglerService(settings: settings, secondsSinceLastEvent: { state, type in
+            #expect(state == .combinedSessionState)
+            #expect(type.rawValue == UInt32.max)
+            return elapsed
+        })
+        #expect(!service.isIdle) // Previously allowed after only five seconds.
+        elapsed = 59.999
+        #expect(!service.isIdle)
+        elapsed = 60
+        #expect(service.isIdle)
+        elapsed = 65
+        #expect(service.isIdle)
+        // A new input (including a posted jiggle) restarts the session idle timer.
+        elapsed = 0
+        #expect(!service.isIdle)
+        elapsed = 59.999
+        #expect(!service.isIdle)
+        elapsed = 60
+        #expect(service.isIdle)
+    }
+
+    @Test func usesCurrentConfiguredWaitAndRejectsInvalidIdleReadings() {
+        let settings = SettingsStore(defaults: nil)
+        var elapsed: TimeInterval = 60
+        let service = MouseJigglerService(settings: settings, secondsSinceLastEvent: { _, _ in elapsed })
+        #expect(service.isIdle)
+        settings.value.jigglerInterval = 120
+        #expect(!service.isIdle)
+        elapsed = 120
+        #expect(service.isIdle)
+        settings.value.jigglerInterval = 10
+        elapsed = 9.999
+        #expect(!service.isIdle)
+        elapsed = 10
+        #expect(service.isIdle)
+        for invalid in [-1, Double.nan, Double.infinity] {
+            elapsed = invalid
+            #expect(!service.isIdle)
+        }
+    }
+}
