@@ -51,6 +51,47 @@ final class ClipboardStoreTests {
         try encrypted.write(to: url)
         expectThrows(try store.payload(for: item))
     }
+    @Test func testEnablingPersistenceMigratesMemoryHistoryAndSurvivesQuit() throws {
+        let first = store(); first.configure()
+        first.insert(payload, preview: "private-test-content", kind: "Text")
+        let item = try requireValue(first.items.first)
+        first.pin(item.id)
+
+        settings.value.clipboardPersistent = true; first.configure()
+        expectNil(first.error)
+        expectTrue(first.persistent)
+        expectEqual(try first.payload(for: item).entries, payload.entries)
+        first.shutdown()
+
+        let reloaded = store(); reloaded.configure()
+        expectNil(reloaded.error)
+        expectEqual(reloaded.items.count, 1)
+        let restored = try requireValue(reloaded.items.first)
+        expectEqual(restored.id, item.id)
+        expectTrue(restored.pinned)
+        expectEqual(restored.preview, item.preview)
+        expectEqual(try reloaded.payload(for: restored).entries, payload.entries)
+    }
+    @Test func testStoragePreferenceAndHistorySurviveSettingsReload() throws {
+        let suite = "PocketUtilitiesTests.\(UUID().uuidString)"
+        let defaults = try requireValue(UserDefaults(suiteName: suite))
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let originalSettings = SettingsStore(defaults: defaults)
+        expectFalse(originalSettings.value.clipboardPersistent)
+        expectFalse(originalSettings.value.clearOnQuit)
+        originalSettings.value.clipboardPersistent = true
+        let first = ClipboardStore(settings: originalSettings, directory: directory, keyProvider: { self.key })
+        first.configure(); first.insert(payload, preview: "private-test-content", kind: "Text"); first.shutdown()
+        expectNil(first.error)
+
+        let restoredSettings = SettingsStore(defaults: defaults)
+        expectTrue(restoredSettings.value.clipboardPersistent)
+        let reloaded = ClipboardStore(settings: restoredSettings, directory: directory, keyProvider: { self.key })
+        reloaded.configure()
+        expectNil(reloaded.error)
+        let restored = try requireValue(reloaded.items.first)
+        expectEqual(try reloaded.payload(for: restored).entries, payload.entries)
+    }
     @Test func testDisablingPersistenceClearsDiskAndHistory() {
         settings.value.clipboardPersistent = true
         let store = store(); store.configure(); store.insert(payload, preview: "private-test-content", kind: "Text")

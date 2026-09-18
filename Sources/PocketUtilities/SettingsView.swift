@@ -69,12 +69,17 @@ struct SettingsView: View {
                 }
             }.formStyle(.grouped).tabItem { Label("General", systemImage: "slider.horizontal.3") }.tag("general")
             Form {
+                Section("Clipboard storage") {
+                    Toggle("Keep history across app and Mac restarts", isOn: $settings.value.clipboardPersistent)
+                    Text("Off by default: history stays in memory. When enabled, existing and new entries are saved encrypted on this Mac and restored at launch, within the limits below. Turning this off clears all history.").font(.caption).foregroundStyle(.secondary)
+                    Toggle("Clear history when quitting normally", isOn: $settings.value.clearOnQuit)
+                    if settings.value.clipboardPersistent && settings.value.clearOnQuit {
+                        Text("Clear on quit is enabled, so saved history will be deleted when the app quits normally, including during a Mac restart. Turn it off to keep history across restarts.").font(.caption).foregroundStyle(.orange)
+                    }
+                }
                 Section("Clipboard privacy") {
                     Toggle("Record clipboard history", isOn: $settings.value.clipboardEnabled)
-                    Toggle("Persist encrypted history on this Mac", isOn: $settings.value.clipboardPersistent)
-                    Text("Default: memory-only. Turning persistence off clears all history. Persistent data uses AES-GCM and a local Keychain key.").font(.caption).foregroundStyle(.secondary)
                     Toggle("Ignore copies that last less than 2 seconds", isOn: $settings.value.ignoreBriefCopies)
-                    Toggle("Clear history when quitting normally", isOn: $settings.value.clearOnQuit)
                     Toggle("Direct Paste (requires Accessibility)", isOn: $settings.value.pasteImmediately)
                     Text("Double-click or press Return to close History and paste into the previous app. When Direct Paste is off, selection only copies to the clipboard.").font(.caption).foregroundStyle(.secondary)
                     Stepper("Maximum items: \(settings.value.clipboardLimit)", value: $settings.value.clipboardLimit, in: 10...500, step: 10)
