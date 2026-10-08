@@ -69,27 +69,33 @@ struct ClipboardHistoryView: View {
             if filtered.isEmpty {
                 ContentUnavailableView(query.isEmpty ? "No clipboard history" : "No matches", systemImage: "clipboard", description: Text("Copy something in another app. Brief copies and excluded apps are ignored."))
             } else {
-                List(selection: $selection) {
-                    ForEach(filtered) { item in
-                        HStack(spacing: 10) {
-                            ClipboardThumbnail(item: item, store: store)
-                            VStack(alignment: .leading, spacing: 3) {
-                                Text(item.preview.replacingOccurrences(of: "\n", with: " ")).lineLimit(2)
-                                Text("\(item.kind) · \(item.date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary)
+                ScrollViewReader { proxy in
+                    List(selection: $selection) {
+                        ForEach(filtered) { item in
+                            HStack(spacing: 10) {
+                                ClipboardThumbnail(item: item, store: store)
+                                VStack(alignment: .leading, spacing: 3) {
+                                    Text(item.preview.replacingOccurrences(of: "\n", with: " ")).lineLimit(2)
+                                    Text("\(item.kind) · \(item.date.formatted(date: .abbreviated, time: .shortened))").font(.caption).foregroundStyle(.secondary)
+                                }
+                                Spacer(minLength: 0)
+                                if item.pinned { Image(systemName: "pin.fill").accessibilityLabel("Pinned") }
                             }
-                            Spacer(minLength: 0)
-                            if item.pinned { Image(systemName: "pin.fill").accessibilityLabel("Pinned") }
+                            .id(item.id)
+                            .tag(item.id)
+                            .contentShape(Rectangle())
+                            .onTapGesture(count: 2) { select(item) }
+                            .contextMenu {
+                                Button("Copy to Clipboard") { select(item) }
+                                Button(item.pinned ? "Unpin" : "Pin") { store.pin(item.id) }
+                                Button("Delete", role: .destructive) { store.delete(item.id) }
+                            }
                         }
-                        .tag(item.id)
-                        .contentShape(Rectangle())
-                        .onTapGesture(count: 2) { select(item) }
-                        .contextMenu {
-                            Button("Copy to Clipboard") { select(item) }
-                            Button(item.pinned ? "Unpin" : "Pin") { store.pin(item.id) }
-                            Button("Delete", role: .destructive) { store.delete(item.id) }
-                        }
+                    }.listStyle(.inset)
+                    .onChange(of: selection) { _, selectedID in
+                        if let selectedID { proxy.scrollTo(selectedID) }
                     }
-                }.listStyle(.inset)
+                }
             }
             HStack {
                 Text("↑↓ Navigate · Return Select · Esc Close").font(.caption).foregroundStyle(.secondary)

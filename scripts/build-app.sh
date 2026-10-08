@@ -2,10 +2,11 @@
 set -eu
 cd "$(dirname "$0")/.."
 ./scripts/swift.sh build -c release --arch arm64
+BIN_DIR="$(./scripts/swift.sh build -c release --arch arm64 --show-bin-path)"
 APP="$(pwd)/dist/Pocket Utilities.app"
 mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
 cp Resources/AppIcon.icns "$APP/Contents/Resources/AppIcon.icns"
-cp .build/arm64-apple-macosx/release/PocketUtilities "$APP/Contents/MacOS/PocketUtilities"
+cp "$BIN_DIR/PocketUtilities" "$APP/Contents/MacOS/PocketUtilities"
 cat > "$APP/Contents/Info.plist" <<'PLIST'
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
@@ -30,4 +31,5 @@ fi
 codesign --force --sign "$SIGNING_IDENTITY" "$APP"
 codesign --verify --strict "$APP"
 lipo -archs "$APP/Contents/MacOS/PocketUtilities"
+touch "$APP"
 printf '\nBuilt: %s\n' "$APP"
