@@ -116,6 +116,11 @@ final class ClipboardStore: ObservableObject {
             prune()
         } catch { self.error = "Clipboard history could not be saved. Recording is paused." }
     }
+    func markUsed(_ id: UUID) {
+        guard error == nil, let index = items.firstIndex(where: { $0.id == id }) else { return }
+        items[index].date = Date()
+        prune()
+    }
     func prune() {
         guard error == nil else { return }
         let keep = HistoryPolicy.retained(items, limit: settings.value.clipboardLimit, maxAgeDays: settings.value.clipboardAgeDays, maxBytes: settings.value.clipboardMaxMB * 1_048_576, totalByteBudget: (persistent ? 256 : 32) * 1_048_576)

@@ -89,6 +89,7 @@ final class ClipboardMonitor: ObservableObject {
         board.clearContents()
         guard board.writeObjects(objects) else { throw UtilityError("Could not restore this item to the system clipboard.") }
         resetBaseline()
+        store.markUsed(item.id)
     }
     deinit { timer?.invalidate() }
 }

@@ -16,6 +16,48 @@ final class ClipboardStoreTests {
     }
     func store() -> ClipboardStore { ClipboardStore(settings: settings, directory: directory, keyProvider: { self.key }) }
     var payload: ClipboardPayload { ClipboardPayload(entries: [[NSPasteboard.PasteboardType.string.rawValue: Data("private-test-content".utf8), NSPasteboard.PasteboardType.rtf.rawValue: Data("{\\rtf1 rich text}".utf8)]]) }
+    @Test(arguments: [false, true]) func reusedEntryMovesToFrontWithoutDuplicates(persistent: Bool) throws {
+        settings.value.clipboardPersistent = persistent
+        let store = store(); store.configure()
+        for number in 1...4 {
+            store.insert(ClipboardPayload(entries: [[NSPasteboard.PasteboardType.string.rawValue: Data("entry-\(number)".utf8)]]), preview: "Entry \(number)", kind: "Text")
+        }
+        let original = store.items
+        let reused = try requireValue(original.last)
+        let originalPayload = try store.payload(for: reused)
+        store.markUsed(reused.id)
+        expectEqual(store.items.map(\.id), [reused.id] + original.dropLast().map(\.id))
+        expectGreaterOrEqual(try requireValue(store.items.first).date, reused.date)
+        expectEqual(try store.payload(for: reused).entries, originalPayload.entries)
+        store.markUsed(reused.id)
+        expectEqual(store.items.count, 4)
+        expectEqual(store.items.first?.id, reused.id)
+        let afterReuse = store.items
+        store.markUsed(UUID())
+        expectEqual(store.items, afterReuse)
+        expectNil(store.error)
+        if persistent {
+            let reloaded = self.store(); reloaded.configure()
+            expectEqual(reloaded.items, store.items)
+            expectNil(reloaded.error)
+        }
+    }
+    @Test func reusedEntryPreservesPinPriority() throws {
+        let store = store(); store.configure()
+        for number in 1...4 {
+            store.insert(ClipboardPayload(entries: [[NSPasteboard.PasteboardType.string.rawValue: Data("entry-\(number)".utf8)]]), preview: "Entry \(number)", kind: "Text")
+        }
+        let original = store.items
+        store.pin(original[0].id)
+        store.pin(original[1].id)
+        store.markUsed(original[3].id)
+        expectEqual(store.items.map(\.id), [original[0].id, original[1].id, original[3].id, original[2].id])
+        store.markUsed(original[1].id)
+        expectEqual(store.items.map(\.id), [original[1].id, original[0].id, original[3].id, original[2].id])
+        expectTrue(store.items[0].pinned)
+        expectTrue(store.items[1].pinned)
+        expectFalse(store.items[2].pinned)
+    }
     @Test func testMemoryOnlyNeverCreatesFilesAndDeduplicates() throws {
         let store = store(); store.configure()
         store.insert(payload, preview: "private-test-content", kind: "Text")
