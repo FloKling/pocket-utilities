@@ -29,6 +29,12 @@ struct Preferences: Codable {
     var ignoreBriefCopies = true
     var clearOnQuit = false
     var pasteImmediately = false
+    // Optional storage keeps preferences saved before this setting decodable.
+    private var clipboardCopySound: Bool?
+    var clipboardCopySoundEnabled: Bool {
+        get { clipboardCopySound ?? true }
+        set { clipboardCopySound = newValue }
+    }
     var excludedApps = ClipboardPrivacyFilter.defaultExclusions.joined(separator: "\n")
     var exclusions: Set<String> { Set(excludedApps.split(whereSeparator: \.isWhitespace).map(String.init)) }
     static var defaults: Preferences {

@@ -80,6 +80,7 @@ struct SettingsView: View {
                 Section("Clipboard privacy") {
                     Toggle("Record clipboard history", isOn: $settings.value.clipboardEnabled)
                     Toggle("Ignore copies that last less than 2 seconds", isOn: $settings.value.ignoreBriefCopies)
+                    Toggle("Play a subtle sound when saving or copying history", isOn: $settings.value.clipboardCopySoundEnabled)
                     Toggle("Direct Paste (requires Accessibility)", isOn: $settings.value.pasteImmediately)
                     Text("Double-click or press Return to close History and paste into the previous app. When Direct Paste is off, selection only copies to the clipboard.").font(.caption).foregroundStyle(.secondary)
                     Stepper("Maximum items: \(settings.value.clipboardLimit)", value: $settings.value.clipboardLimit, in: 10...500, step: 10)

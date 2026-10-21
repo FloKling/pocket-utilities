@@ -99,8 +99,9 @@ final class ClipboardStore: ObservableObject {
         guard let payload = memory[item.id] else { throw UtilityError("This clipboard entry is unavailable.") }
         return payload
     }
-    func insert(_ payload: ClipboardPayload, preview: String, kind: String) {
-        guard error == nil else { return }
+    @discardableResult
+    func insert(_ payload: ClipboardPayload, preview: String, kind: String) -> Bool {
+        guard error == nil else { return false }
         do {
             let canonical = JSONEncoder()
             canonical.outputFormatting = [.sortedKeys]
@@ -114,7 +115,11 @@ final class ClipboardStore: ObservableObject {
                 items.insert(item, at: 0)
             }
             prune()
-        } catch { self.error = "Clipboard history could not be saved. Recording is paused." }
+            return error == nil && items.contains { $0.digest == digest }
+        } catch {
+            self.error = "Clipboard history could not be saved. Recording is paused."
+            return false
+        }
     }
     func markUsed(_ id: UUID) {
         guard error == nil, let index = items.firstIndex(where: { $0.id == id }) else { return }
